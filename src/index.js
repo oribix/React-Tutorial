@@ -47,12 +47,47 @@ class Board extends React.Component {
   }
 }
 
+class GameHistory extends React.Component {
+
+  render() {
+    /** @type {} */
+    const history = this.props.history.slice();
+    const moves = history.map((step, moveNumber) => {
+      let desc = `Go to game start`;
+      let playerSymbol = '-';
+      let row = '-';
+      let col = '-';
+      if (moveNumber > 0 ) {
+        desc = `Go to Move #${moveNumber}`;
+        playerSymbol = moveNumber % 2 === 0 ? 'O' : 'X';
+        row = step.playerMove.row;
+        col = step.playerMove.col;
+      }
+
+      return (
+        <li key={moveNumber}>
+          <span>({col}, {row}, {playerSymbol})</span>
+          <button onClick={() => this.props.jumpTo(moveNumber)}>{desc}</button>
+        </li>
+      );
+    });
+
+    return (
+      <ol>{moves}</ol>
+    )
+  }
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       history: [{
-        squares: Array(9).fill(null)
+        squares: Array(9).fill(null),
+        playerMove: {
+          row: -1,
+          col: -1
+        }
       }],
       stepNumber: 0,
       xIsNext: true
@@ -64,16 +99,6 @@ class Game extends React.Component {
     const current = history[this.state.stepNumber];
     const winner = this.calculateWinner(current.squares);
     let status = this.getCurrentStatusMessage(winner);
-    const moves = history.map((step, move) => {
-      const desc = move ? `Go to Move #${move}` : `Go to game start`;
-      const playerSymbol = '?'; //Todo: get player symbol for this turn
-      return (
-        <li key={move}>
-          <span>{playerSymbol}: </span>
-          <button onClick={() => this.jumpTo(move)}>{desc}</button>
-        </li>
-      );
-    })
 
     return (
       <div className="game">
@@ -85,7 +110,10 @@ class Game extends React.Component {
         </div>
         <div className="game-info">
           <div>{status}</div>
-          <ol>{moves}</ol>
+          <GameHistory
+            history={history}
+            jumpTo={stepNumber => this.jumpTo(stepNumber)}
+          />
         </div>
       </div>
     );
@@ -120,7 +148,11 @@ class Game extends React.Component {
     squares[squareNumber] = playerSymbol;
     this.setState({
       history: history.concat([{
-        squares: squares
+        squares: squares,
+        playerMove: {
+          row: Math.floor(squareNumber / 3),
+          col: squareNumber % 3
+        }
       }]),
       stepNumber: history.length,
       xIsNext: !this.state.xIsNext
