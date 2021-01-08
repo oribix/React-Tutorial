@@ -49,16 +49,38 @@ class Board extends React.Component {
 
 class GameHistory extends React.Component {
 
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      reverseOrder: false
+    }
+  }
+
   render() {
+    const reverse = this.state.reverseOrder;
+    const sortBtnLabel = reverse ? "Sort ascending" : "Sort Descending";
+
+    /** @type {Array<GameHistoryItem} */
     const history = this.props.history.slice();
-    const moves = history.map(this.createMoveEntry.bind(this));
+    let moves = history.map(this.createMoveEntry.bind(this));
+    if(reverse) moves.reverse();
 
     return (
-      <ol>{moves}</ol>
+      <>
+        <button onClick={this.reverse.bind(this)}>{sortBtnLabel}</button>
+        <ol reversed={this.state.reverseOrder}>{moves}</ol>
+      </>
     )
   }
 
-  createMoveEntry(step, moveNumber) {
+  /**
+   * Generates HTML for a move entry
+   * @param {GameHistoryItem} gameStep 
+   * @param {Number} moveNumber
+   * @returns {JSX.Element} move entry
+   */
+  createMoveEntry(gameStep, moveNumber) {
     let desc = `Go to game start`;
     let playerSymbol = 'P';
     let row = 'R';
@@ -67,8 +89,8 @@ class GameHistory extends React.Component {
     if (moveNumber > 0) {
       desc = `Go to Move #${moveNumber}`;
       playerSymbol = moveNumber % 2 === 0 ? 'O' : 'X';
-      row = step.playerMove.row;
-      col = step.playerMove.col;
+      row = gameStep.playerMove.row;
+      col = gameStep.playerMove.col;
     }
 
     //bold the list item if this is the currently selected move
@@ -82,12 +104,28 @@ class GameHistory extends React.Component {
       </li>
     );
   }
+
+  reverse(){
+    this.setState({
+      reverseOrder: !this.state.reverseOrder
+    });
+  }
 }
+
+/**
+ * @typedef {Object} GameHistoryItem an entry in the Game state's history
+ * @property {Array<String>} squares
+ * @property {{
+ *  row: Number,
+ *  col: Number
+ * }} playerMove
+ */
 
 class Game extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      /** @type {Array<GameHistoryItem>} */
       history: [{
         squares: Array(9).fill(null),
         playerMove: {
@@ -104,7 +142,7 @@ class Game extends React.Component {
     const history = this.state.history;
     const current = history[this.state.stepNumber];
     const winner = this.calculateWinner(current.squares);
-    let status = this.getCurrentStatusMessage(winner);
+    let status = !!winner ? this.getWinnerMsg(winner) : this.getNextPlayerMsg();
 
     return (
       <div className="game">
@@ -124,18 +162,6 @@ class Game extends React.Component {
         </div>
       </div>
     );
-  }
-
-  getCurrentStatusMessage(winner){
-    let status;
-    if(winner) {
-      status = `Winner: ${winner}`;
-    }
-    else {
-      status = `Next player: ${this.getPlayerSymbol()}`;
-    }
-
-    return status;
   }
 
   /**
@@ -164,6 +190,17 @@ class Game extends React.Component {
       stepNumber: history.length,
       xIsNext: !this.state.xIsNext
     });
+  }
+
+  /**
+   * @param {String} winner 
+   */
+  getWinnerMsg(winner) {
+    return `Winner: ${winner}`;
+  }
+
+  getNextPlayerMsg() {
+    return `Next player: ${this.getPlayerSymbol()}`;
   }
 
   /**
