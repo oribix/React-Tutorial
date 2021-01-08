@@ -50,31 +50,37 @@ class Board extends React.Component {
 class GameHistory extends React.Component {
 
   render() {
-    /** @type {} */
     const history = this.props.history.slice();
-    const moves = history.map((step, moveNumber) => {
-      let desc = `Go to game start`;
-      let playerSymbol = '-';
-      let row = '-';
-      let col = '-';
-      if (moveNumber > 0 ) {
-        desc = `Go to Move #${moveNumber}`;
-        playerSymbol = moveNumber % 2 === 0 ? 'O' : 'X';
-        row = step.playerMove.row;
-        col = step.playerMove.col;
-      }
-
-      return (
-        <li key={moveNumber}>
-          <span>({col}, {row}, {playerSymbol})</span>
-          <button onClick={() => this.props.jumpTo(moveNumber)}>{desc}</button>
-        </li>
-      );
-    });
+    const moves = history.map(this.createMoveEntry.bind(this));
 
     return (
       <ol>{moves}</ol>
     )
+  }
+
+  createMoveEntry(step, moveNumber) {
+    let desc = `Go to game start`;
+    let playerSymbol = 'P';
+    let row = 'R';
+    let col = 'C';
+
+    if (moveNumber > 0) {
+      desc = `Go to Move #${moveNumber}`;
+      playerSymbol = moveNumber % 2 === 0 ? 'O' : 'X';
+      row = step.playerMove.row;
+      col = step.playerMove.col;
+    }
+
+    //bold the list item if this is the currently selected move
+    const isCurrentMove = moveNumber === this.props.stepNumber;
+    let style = isCurrentMove ? {"font-weight":"bold"} : {};
+
+    return (
+      <li key={moveNumber} style={style}>
+        <span>({col}, {row}, {playerSymbol})</span>
+        <button onClick={() => this.props.jumpTo(moveNumber)}>{desc}</button>
+      </li>
+    );
   }
 }
 
@@ -112,7 +118,8 @@ class Game extends React.Component {
           <div>{status}</div>
           <GameHistory
             history={history}
-            jumpTo={stepNumber => this.jumpTo(stepNumber)}
+            jumpTo={this.jumpTo.bind(this)}
+            stepNumber={this.state.stepNumber}
           />
         </div>
       </div>
@@ -179,11 +186,12 @@ class Game extends React.Component {
   }
 
   /**
-   * 
-   * @param {Array<String>} squares 
+   * @param {Array<String>} squares the board squares
+   * @returns {String} Winning player or null if there is no winner
    */
   calculateWinner(squares) {
-    const lines = [
+    //possible winning moves
+    const winPermutations = [
       [0, 1, 2],
       [3, 4, 5],
       [6, 7, 8],
@@ -193,12 +201,21 @@ class Game extends React.Component {
       [0, 4, 8],
       [2, 4, 6],
     ];
-    for (let i = 0; i < lines.length; i++) {
-      const [a, b, c] = lines[i];
-      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-        return squares[a];
+
+    for(let winPermutation of winPermutations) {
+      const [a, b, c] = winPermutation;
+      const playerSymbol = squares[a];
+      const isOccupiedSpace = !!playerSymbol;
+      const isMatchB = playerSymbol === squares[b];
+      const isMatchC = playerSymbol === squares[c];
+      const isMatchingSymbols = isMatchB && isMatchC;
+
+      if (isOccupiedSpace && isMatchingSymbols) {
+        return playerSymbol;
       }
     }
+
+    //no winner
     return null;
   }
 }
