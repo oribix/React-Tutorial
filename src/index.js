@@ -1,12 +1,19 @@
+//@ts-check
+
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 
 function Square(props) {
+  const isWinningSquare = props.isWinningSquare;
+  /** @type {import('react').CSSProperties} */
+  const squareStyle = isWinningSquare ? { backgroundColor: "yellow" } : {};
+
   return (
     <button
       className="square"
       onClick={props.onClick}
+      style={squareStyle}
     >
       {props.value}
     </button>
@@ -21,6 +28,9 @@ class Board extends React.Component {
    */
   renderSquare(squareNumber) {
     const playerSymbol = this.props.squares[squareNumber];
+    /** @type {Array<Number>} */ const winningSquares = this.props.winningSquares;
+    const isWinningSquare = winningSquares?.includes(squareNumber);
+
     return (
       <Square
         key={squareNumber}
@@ -28,6 +38,7 @@ class Board extends React.Component {
         onClick={() => {
           this.props.onClick(squareNumber);
         }}
+        isWinningSquare={isWinningSquare}
       />
     );
   }
@@ -89,16 +100,17 @@ class GameHistory extends React.Component {
     if (moveNumber > 0) {
       desc = `Go to Move #${moveNumber}`;
       playerSymbol = moveNumber % 2 === 0 ? 'O' : 'X';
-      row = gameStep.playerMove.row;
-      col = gameStep.playerMove.col;
+      row = gameStep.playerMove.row.toString();
+      col = gameStep.playerMove.col.toString();
     }
 
     //bold the list item if this is the currently selected move
     const isCurrentMove = moveNumber === this.props.stepNumber;
-    let style = isCurrentMove ? {"font-weight":"bold"} : {};
+    /** @type {import('react').CSSProperties} */
+    let moveEntryStyle = isCurrentMove ? {"fontWeight":"bold"} : {};
 
     return (
-      <li key={moveNumber} style={style}>
+      <li key={moveNumber} style={moveEntryStyle}>
         <span>({col}, {row}, {playerSymbol})</span>
         <button onClick={() => this.props.jumpTo(moveNumber)}>{desc}</button>
       </li>
@@ -140,9 +152,12 @@ class Game extends React.Component {
 
   render() {
     const history = this.state.history;
-    const current = history[this.state.stepNumber];
-    const winner = this.calculateWinner(current.squares);
-    let status = !!winner ? this.getWinnerMsg(winner) : this.getNextPlayerMsg();
+    const stepNumber = this.state.stepNumber;
+    const current = history[stepNumber];
+    const winInfo = this.calculateWinner(current.squares);
+    const winner = winInfo?.winner;
+    const winningSquares = winInfo?.winningSquares;
+    const status = this.getStatusMessage(winner, stepNumber);
 
     return (
       <div className="game">
@@ -150,6 +165,7 @@ class Game extends React.Component {
           <Board
             squares={current.squares}
             onClick={(i) => this.handleClick(i)}
+            winningSquares={winningSquares}
           />
         </div>
         <div className="game-info">
@@ -157,7 +173,7 @@ class Game extends React.Component {
           <GameHistory
             history={history}
             jumpTo={this.jumpTo.bind(this)}
-            stepNumber={this.state.stepNumber}
+            stepNumber={stepNumber}
           />
         </div>
       </div>
@@ -165,7 +181,7 @@ class Game extends React.Component {
   }
 
   /**
-   * 
+   * handles a click on a square
    * @param {Number} squareNumber 
    */
   handleClick(squareNumber) {
@@ -173,12 +189,16 @@ class Game extends React.Component {
     const current = history[history.length - 1];
     const squares = current.squares.slice();
 
+    //Do nothing if Gameover or Square already filled
     const isFilledSquare = !!squares[squareNumber];
     const isGameOver = !!this.calculateWinner(squares);
     if(isGameOver || isFilledSquare) { return; }
 
+    //insert player symbol into square
     const playerSymbol = this.getPlayerSymbol();
     squares[squareNumber] = playerSymbol;
+
+    //update game state
     this.setState({
       history: history.concat([{
         squares: squares,
@@ -193,14 +213,28 @@ class Game extends React.Component {
   }
 
   /**
-   * @param {String} winner 
+   * returns status message depending on game state
+   * @param {String} winner winner of the game
+   * @param {Number} stepNumber turn number
+   * @return {String} status message
    */
-  getWinnerMsg(winner) {
-    return `Winner: ${winner}`;
-  }
+  getStatusMessage(winner, stepNumber) {
+    const isFullBoard = stepNumber >= 9;
+    const isTie = isFullBoard && !winner;
+    const isPlayerWon = !!winner;
 
-  getNextPlayerMsg() {
-    return `Next player: ${this.getPlayerSymbol()}`;
+    let status = "";
+    if(isTie) {
+      status = "Tie!"
+    }
+    else if (isPlayerWon) {
+      status = `Winner: ${winner}`;
+    }
+    else {
+      status = `Next player: ${this.getPlayerSymbol()}`
+    }
+
+    return status;
   }
 
   /**
@@ -223,8 +257,14 @@ class Game extends React.Component {
   }
 
   /**
+   * @typedef {Object} WinInfo
+   * @property {String} winner the winning player's symbol
+   * @property {Array<Number>} winningSquares the squares that consitute the win
+   */
+
+  /**
    * @param {Array<String>} squares the board squares
-   * @returns {String} Winning player or null if there is no winner
+   * @returns {WinInfo} win info or null if there is no winner
    */
   calculateWinner(squares) {
     //possible winning moves
@@ -248,7 +288,10 @@ class Game extends React.Component {
       const isMatchingSymbols = isMatchB && isMatchC;
 
       if (isOccupiedSpace && isMatchingSymbols) {
-        return playerSymbol;
+        return {
+          winner: playerSymbol,
+          winningSquares: winPermutation
+        };
       }
     }
 
