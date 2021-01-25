@@ -72,7 +72,7 @@ class GameHistory extends React.Component {
     const reverse = this.state.reverseOrder;
     const sortBtnLabel = reverse ? "Sort ascending" : "Sort Descending";
 
-    /** @type {Array<GameHistoryItem} */
+    /** @type {Array<GameHistoryItem>} */
     const history = this.props.history.slice();
     let moves = history.map(this.createMoveEntry.bind(this));
     if(reverse) moves.reverse();
